@@ -1,77 +1,126 @@
-"use client";
-import { useAuth } from "@/app/context/AuthContext";
-import { doc, onSnapshot } from "firebase/firestore";
-import { db } from "@/app/firebaseConfig";
-import { useEffect, useState } from "react";
-import Navbar from "@/app/components/Navbar";
-import { CiLogout } from "react-icons/ci";
-import { IoIosSettings } from "react-icons/io";
-import { GoPerson } from "react-icons/go";
-import { AiOutlineLoading3Quarters } from "react-icons/ai";
-import Login from "@/app/components/auth"; // Login sahifasi
+"use client"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { getAuth, signOut } from "firebase/auth";
+import { getFirestore, doc, getDoc, updateDoc } from "firebase/firestore";
+import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { app } from "@/app/firebaseConfig";
+import {
+  FaCog,
+  FaWallet,
+  FaUsers,
+  FaGlobe,
+  FaSignOutAlt,
+  FaUser,
+  FaLink,
+} from "react-icons/fa";
 
-export default function Page() {
-  const { user, logout, loading } = useAuth();
-  const [coins, setCoins] = useState(0);
-  const [showSettings, setShowSettings] = useState(false);
-  const [userName, setUserName] = useState("");
-  const [dataLoading, setDataLoading] = useState(true);
+const Dashboard = () => {
+  const [user, setUser] = useState(null);
+  const [wallet, setWallet] = useState("");
+  const [referrals, setReferrals] = useState([]);
+  const [language, setLanguage] = useState("uz");
+  const [profileImage, setProfileImage] = useState("");
+  const router = useRouter();
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
 
   useEffect(() => {
-    if (user) {
-      const userRef = doc(db, "users", user.uid);
-      const unsubscribe = onSnapshot(userRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setCoins(docSnap.data().coins || 0);
-          setUserName(docSnap.data().name || "Foydalanuvchi");
+    const fetchUserData = async () => {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        setUser(currentUser);
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+          setWallet(userDoc.data().wallet || "");
+          setReferrals(userDoc.data().referrals || []);
+          const profileRef = ref(storage, `profiles/${currentUser.uid}.jpg`);
+          try {
+            const profileUrl = await getDownloadURL(profileRef);
+            setProfileImage(profileUrl);
+          } catch (error) {
+            setProfileImage("");
+          }
         }
-        setDataLoading(false);
-      });
+      }
+    };
+    fetchUserData();
+  }, [auth]);
 
-      return () => unsubscribe();
-    } else {
-      setDataLoading(false);
-    }
-  }, [user]);
-
-  if (loading || dataLoading) {
-    return (
-      <div className="flex flex-col px-28 items-center justify-center min-h-screen text-white bg-gray-900">
-        <p className="text-lg flex gap-2 items-center"><AiOutlineLoading3Quarters className="animate-spin text-4xl mb-3" /> Yuklanmoqda...</p>
-      </div>
-    );
-  }
-
-  if (!user) return <Login />; // Foydalanuvchi yo‘q bo‘lsa, login sahifasiga yo‘naltiramiz
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/login");
+  };
 
   return (
-    <div className="relative flex flex-col items-center justify-center min-h-screen w-full max-w-[400px] mx-auto px-4 text-white bg-gray-900 overflow-hidden">
-      <p className="absolute top-4 left-4 text-white font-semibold flex gap-2 items-center">
-        <GoPerson /> {userName}
-      </p>
-
-      <button
-        onClick={() => setShowSettings(!showSettings)}
-        className="absolute top-4 right-4 bg-gray-800 px-3 py-2 rounded text-sm shadow-md hover:bg-gray-700 transition"
-      >
-        <IoIosSettings />
-      </button>
-
-      {showSettings && (
+    <div className="min-h-screen bg-black text-white p-4 flex flex-col">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center">
+          {profileImage ? (
+            <img
+              src={profileImage}
+              alt="Profile"
+              className="w-10 h-10 rounded-full mr-2"
+            />
+          ) : (
+            <FaUser size={40} className="mr-2 text-gray-400" />
+          )}
+          <h1 className="text-xl font-bold">{user?.displayName}</h1>
+        </div>
         <button
-          onClick={logout}
-          className="absolute flex gap-2 items-center top-14 right-4 bg-zinc-600 px-3 py-2 rounded text-sm shadow-md hover:bg-zinc-700 transition"
+          className="text-gray-300"
+          onClick={() => setLanguage(language === "uz" ? "en" : "uz")}
         >
-          <CiLogout /> Chiqish
+          <FaCog size={20} />
         </button>
-      )}
-
-      <div className="text-center">
-        <h1 className="text-3xl font-bold mb-4">💰 Balans</h1>
-        <p className="text-xl">{coins.toFixed(6)} TON</p>
       </div>
-
-      <Navbar />
+      <div className="bg-gray-800 p-4 rounded-lg mb-4 flex items-center">
+        <FaWallet size={20} className="mr-2" />
+        <div>
+          <h2 className="text-lg">Wallet</h2>
+          <p className="text-sm text-gray-400">{wallet || "Not linked"}</p>
+        </div>
+      </div>
+      <div className="bg-gray-800 p-4 rounded-lg mb-4 flex items-center">
+        <FaUsers size={20} className="mr-2" />
+        <div>
+          <h2 className="text-lg">Referrals</h2>
+          <ul className="text-sm text-gray-400">
+            {referrals.length > 0 ? (
+              referrals.map((ref, index) => <li key={index}>{ref}</li>)
+            ) : (
+              <p>No referrals yet</p>
+            )}
+          </ul>
+        </div>
+      </div>
+      <div className="bg-gray-800 p-4 rounded-lg mb-4 flex items-center">
+        <FaLink size={20} className="mr-2" />
+        <div>
+          <h2 className="text-lg">Referral Link</h2>
+          <p className="text-sm text-gray-400">
+            https://earn-ton.vercel.app/ref/{user?.uid}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={handleLogout}
+        className="bg-red-500 p-2 rounded-lg text-white flex items-center justify-center"
+      >
+        <FaSignOutAlt size={20} className="mr-2" /> Logout
+      </button>
+      <div className="bg-gray-800 p-4 rounded-lg mt-4 flex items-center">
+        <FaGlobe size={20} className="mr-2" />
+        <div>
+          <h2 className="text-lg">Internet Status</h2>
+          <p className="text-sm text-gray-400">
+            {navigator.onLine ? "Online" : "Offline"}
+          </p>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default Dashboard;

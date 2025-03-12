@@ -6,7 +6,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyBpLe1pD-er_U7t5QOnsPYBvF9AfPnl9AQ",
   authDomain: "earn-ton.firebaseapp.com",
   projectId: "earn-ton",
-  storageBucket: "earn-ton.firebasestorage.app",
+  storageBucket: "earn-ton.appspot.com", // To'g'ri yozildi
   messagingSenderId: "1080910098297",
   appId: "1:1080910098297:web:af556a1a557565e72d49a8",
 };
